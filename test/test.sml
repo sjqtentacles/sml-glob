@@ -1,21 +1,17 @@
-(* Dependency-free test runner for the Glob structure.
- * Prints one line per assertion and exits non-zero if any assertion fails. *)
+(* Test suite for the Glob structure, standardized on the shared
+ * sml-test Harness. *)
 
-val passed = ref 0
-val failed = ref 0
+structure Tests =
+struct
+  open Harness
 
-fun check (name : string) (cond : bool) : unit =
-    if cond
-    then (passed := !passed + 1; print ("ok   - " ^ name ^ "\n"))
-    else (failed := !failed + 1; print ("FAIL - " ^ name ^ "\n"))
+  structure G = Glob
 
-structure G = Glob
+  (* m pat s = does pat match s *)
+  val m = G.matchString
 
-(* m pat s = does pat match s *)
-val m = G.matchString
-
-fun run () =
-  let
+  fun run () =
+    let
     (* ---- literals ---- *)
     val () = check "literal exact" (m "abc" "abc")
     val () = check "literal no match" (not (m "abc" "abd"))
@@ -103,9 +99,6 @@ fun run () =
     val allOk = List.all (fn (p, s, e) => m p s = e) cases
     val () = check "all consistency cases" allOk
   in
-    print ("\n" ^ Int.toString (!passed) ^ " passed, "
-           ^ Int.toString (!failed) ^ " failed\n");
-    OS.Process.exit (if !failed = 0 then OS.Process.success else OS.Process.failure)
+    Harness.run ()
   end
-
-val () = run ()
+end
