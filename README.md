@@ -72,14 +72,66 @@ Glob.matchString "a\\*b" "a*b"     (* true:  the * is literal  *)
 Glob.matchString "a\\*b" "axxb"    (* false: not a wildcard    *)
 ```
 
+### Filtering lists
+
+```sml
+val p = Glob.compile "*.sml"
+val srcs = Glob.filter p ["a.sml","b.txt","c.sml"]      (* ["a.sml","c.sml"] *)
+val (yes, no) = Glob.partition p ["a.sml","b.txt"]      (* (["a.sml"], ["b.txt"]) *)
+```
+
+### Brace expansion
+
+`expand` produces every literal alternative (the cartesian product across
+groups, with nesting); `compileBrace` compiles each one to a pattern.
+
+```sml
+Glob.expand "{a,b}c"         (* ["ac","bc"] *)
+Glob.expand "{a,b}{x,y}"     (* ["ax","ay","bx","by"] *)
+Glob.expand "foo.{c,h}"      (* ["foo.c","foo.h"] *)
+val ps = Glob.compileBrace "{a,b}.sml"   (* two patterns *)
+```
+
+### Path-aware matching
+
+`matchPath` treats `/` as a separator: a single `*`/`?` will not cross it, and
+`**` (globstar) matches across separators, including zero segments.
+
+```sml
+Glob.matchPath "src/*.sml"    "src/x.sml"      (* true  *)
+Glob.matchPath "src/*.sml"    "src/sub/x.sml"  (* false: * stops at /  *)
+Glob.matchPath "src/**/*.sml" "src/a/b/x.sml"  (* true  *)
+Glob.matchPath "src/**/x.sml" "src/x.sml"      (* true: ** matches zero dirs *)
+```
+
+### Strict compilation & introspection
+
+```sml
+Glob.compileOpt "a[bc"          (* NONE: unterminated class *)
+Glob.validate   "a[bc"          (* SOME "unterminated '[' character class" *)
+Glob.isLiteral     (Glob.compile "abc")       (* true  *)
+Glob.literalPrefix (Glob.compile "src/*.sml") (* "src/" — prune a dir walk *)
+Glob.toRegexString (Glob.compile "a*b?.sml")  (* "^a.*b.\\.sml$" *)
+```
+
 ## API summary
 
 | Function | Description |
 | --- | --- |
-| `compile : string -> pattern` | Compile a glob pattern. |
+| `compile : string -> pattern` | Compile a glob pattern (lenient). |
+| `compileOpt : string -> pattern option` | Strict compile; `NONE` on malformed. |
+| `validate : string -> string option` | `SOME msg` on malformed, else `NONE`. |
 | `matches : pattern -> string -> bool` | Match a compiled pattern (anchored). |
 | `matchString : string -> string -> bool` | Compile + match in one step. |
+| `matchPath : string -> string -> bool` | Path-aware match (`/`-respecting, `**`). |
 | `caseInsensitive : string -> pattern` | Compile a case-insensitive pattern. |
+| `filter : pattern -> string list -> string list` | Keep matching strings. |
+| `partition : pattern -> string list -> string list * string list` | Split by match. |
+| `expand : string -> string list` | Brace expansion to literal alternatives. |
+| `compileBrace : string -> pattern list` | Compile each brace expansion. |
+| `literalPrefix : pattern -> string` | Leading literal run before first wildcard. |
+| `isLiteral : pattern -> bool` | True if the pattern has no wildcards. |
+| `toRegexString : pattern -> string` | Anchored regex equivalent. |
 
 ## License
 

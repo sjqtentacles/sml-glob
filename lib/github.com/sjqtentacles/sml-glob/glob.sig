@@ -24,6 +24,12 @@ sig
      literal backslash, and an unterminated `[` is treated as a literal `[`. *)
   val compile : string -> pattern
 
+  (* Strict compilation: rejects malformed patterns (currently an unterminated
+     character class). compileOpt returns NONE; validate returns an error
+     message (SOME msg) or NONE if the pattern is well-formed. *)
+  val compileOpt : string -> pattern option
+  val validate   : string -> string option
+
   (* Does the pattern match the whole string? *)
   val matches : pattern -> string -> bool
 
@@ -32,4 +38,29 @@ sig
 
   (* Compile a pattern that matches case-insensitively. *)
   val caseInsensitive : string -> pattern
+
+  (* Keep / split a list of strings by whether they match the pattern.
+     partition returns (matching, non-matching), order preserved. *)
+  val filter    : pattern -> string list -> string list
+  val partition : pattern -> string list -> string list * string list
+
+  (* Brace expansion. expand "{a,b}c" = ["ac","bc"]; nested braces and the
+     cartesian product of multiple groups are supported. A string with no
+     braces expands to itself. compileBrace compiles each expansion to a
+     pattern (so a single brace pattern becomes several globs). *)
+  val expand       : string -> string list
+  val compileBrace : string -> pattern list
+
+  (* Path-aware matching: '/' is a path separator that a single '*' or '?' will
+     NOT cross, and '**' matches across separators (any number of segments,
+     including zero). matchPath compiles and matches in one step. *)
+  val matchPath : string -> string -> bool
+
+  (* Introspection. literalPrefix returns the leading run of literal characters
+     before the first wildcard (useful to prune a directory walk). isLiteral is
+     true when the pattern has no wildcards at all. toRegexString renders an
+     anchored POSIX-ish regular expression equivalent to the glob. *)
+  val literalPrefix : pattern -> string
+  val isLiteral     : pattern -> bool
+  val toRegexString : pattern -> string
 end

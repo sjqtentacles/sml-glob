@@ -98,6 +98,58 @@ struct
         ]
     val allOk = List.all (fn (p, s, e) => m p s = e) cases
     val () = check "all consistency cases" allOk
+
+    (* ---- strict compile / validate ---- *)
+    val () = section "compileOpt / validate"
+    val () = check "compileOpt ok" (Option.isSome (G.compileOpt "a*b[cd]"))
+    val () = check "compileOpt rejects unterminated class" (not (Option.isSome (G.compileOpt "a[bc")))
+    val () = check "validate clean -> NONE" (G.validate "a*b" = NONE)
+    val () = check "validate flags unterminated" (Option.isSome (G.validate "[abc"))
+    val () = check "validate escaped bracket ok" (G.validate "\\[abc" = NONE)
+
+    (* ---- filter / partition ---- *)
+    val () = section "filter / partition"
+    val files = ["a.sml","b.txt","c.sml","d.md"]
+    val () = checkStringList "filter *.sml" (["a.sml","c.sml"], G.filter (G.compile "*.sml") files)
+    val (yes, no) = G.partition (G.compile "*.sml") files
+    val () = checkStringList "partition matching" (["a.sml","c.sml"], yes)
+    val () = checkStringList "partition rest" (["b.txt","d.md"], no)
+
+    (* ---- brace expansion ---- *)
+    val () = section "expand / compileBrace"
+    val () = checkStringList "expand simple" (["ac","bc"], G.expand "{a,b}c")
+    val () = checkStringList "expand product" (["ax","ay","bx","by"], G.expand "{a,b}{x,y}")
+    val () = checkStringList "expand nested" (["a1","a2","b"], G.expand "{a{1,2},b}")
+    val () = checkStringList "expand no braces" (["plain"], G.expand "plain")
+    val () = checkStringList "expand suffix" (["foo.c","foo.h"], G.expand "foo.{c,h}")
+    val () = check "compileBrace count" (List.length (G.compileBrace "{a,b,c}") = 3)
+    val () = check "compileBrace matches"
+               (List.exists (fn p => G.matches p "b.sml") (G.compileBrace "{a,b}.sml"))
+
+    (* ---- path-aware matching ---- *)
+    val () = section "matchPath (** and separator-aware *)"
+    val () = check "* does not cross /" (not (G.matchPath "src/*.sml" "src/sub/x.sml"))
+    val () = check "* matches within segment" (G.matchPath "src/*.sml" "src/x.sml")
+    val () = check "** crosses /" (G.matchPath "src/**/*.sml" "src/a/b/x.sml")
+    val () = check "** zero segments" (G.matchPath "src/**/x.sml" "src/x.sml")
+    val () = check "** matches everything" (G.matchPath "**" "a/b/c")
+    val () = check "? does not cross /" (not (G.matchPath "a?b" "a/b"))
+    val () = check "literal path" (G.matchPath "a/b/c" "a/b/c")
+    val () = check "path no match" (not (G.matchPath "a/b" "a/c"))
+
+    (* ---- introspection ---- *)
+    val () = section "isLiteral / literalPrefix / toRegexString"
+    val () = check "isLiteral true" (G.isLiteral (G.compile "abc"))
+    val () = check "isLiteral false for *" (not (G.isLiteral (G.compile "ab*")))
+    val () = check "isLiteral escaped is literal" (G.isLiteral (G.compile "a\\*b"))
+    val () = checkString "literalPrefix before *" ("src/", G.literalPrefix (G.compile "src/*.sml"))
+    val () = checkString "literalPrefix full when literal" ("abc", G.literalPrefix (G.compile "abc"))
+    val () = checkString "literalPrefix empty when wildcard first" ("", G.literalPrefix (G.compile "*.sml"))
+    val () = checkString "toRegexString star" ("^a.*b$", G.toRegexString (G.compile "a*b"))
+    val () = checkString "toRegexString question" ("^a.c$", G.toRegexString (G.compile "a?c"))
+    val () = checkString "toRegexString escapes dot" ("^foo\\.sml$", G.toRegexString (G.compile "foo.sml"))
+    val () = checkString "toRegexString class" ("^[abc]$", G.toRegexString (G.compile "[abc]"))
+    val () = checkString "toRegexString negated class" ("^[^0-9]$", G.toRegexString (G.compile "[!0-9]"))
   in
     Harness.run ()
   end
