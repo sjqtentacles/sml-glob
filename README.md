@@ -133,6 +133,33 @@ Glob.toRegexString (Glob.compile "a*b?.sml")  (* "^a.*b.\\.sml$" *)
 | `isLiteral : pattern -> bool` | True if the pattern has no wildcards. |
 | `toRegexString : pattern -> string` | Anchored regex equivalent. |
 
+## Example
+
+`make example` builds and runs [`examples/demo.sml`](examples/demo.sml), which
+compiles and matches globs, partitions a file list, expands brace patterns,
+matches path-aware `**` patterns, and inspects a compiled pattern (output is
+byte-identical under MLton and Poly/ML):
+
+```
+Glob demo
+matches "notes.txt" = true
+matches "notes.md"  = false
+matchString "[Hh]ello" "Hello" = true
+caseInsensitive *.TXT matches "a.txt" = true
+partition *.txt over [a.txt,b.md,c.txt,readme]
+  matching     = [a.txt,c.txt]
+  non-matching = [b.md,readme]
+expand "file{1,2,3}.txt" = [file1.txt,file2.txt,file3.txt]
+compileBrace "a{x,y}b" pattern count = 2
+matchPath "src/**/*.sml" "src/lib/a.sml" = true
+matchPath "src/*.sml"    "src/lib/a.sml" = false
+literalPrefix "foo/bar*.txt" = foo/bar
+isLiteral "plain.txt"        = true
+toRegexString "a?c"          = ^a.c$
+compileOpt "[abc" (unterminated class) = NONE
+validate "[abc"                          = Err unterminated '[' character class
+```
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
